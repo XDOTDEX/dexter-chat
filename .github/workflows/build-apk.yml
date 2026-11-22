@@ -47,11 +47,24 @@ jobs:
       - name: Generate placeholder launcher icons
         working-directory: app/android/app/src/main/res
         run: |
-          for spec in "mipmap-mdpi 48" "mipmap-hdpi 72" "mipmap-xhdpi 96" "mipmap-xxhdpi 144" "mipmap-xxxhdpi 192"; do
-            set -- $spec
-            mkdir -p "$1"
-            convert -size "${2}x${2}" xc:"#101018" "$1/ic_launcher.png" || magick -size "${2}x${2}" xc:"#101018" "$1/ic_launcher.png"
-          done
+          python3 - <<'PYEOF'
+          import os, struct, zlib
+          def png(size, rgb):
+              def chunk(typ, data):
+                  c = struct.pack(">I", len(data)) + typ + data
+                  c += struct.pack(">I", zlib.crc32(typ + data) & 0xffffffff)
+                  return c
+              ihdr = struct.pack(">IIBBBBB", size, size, 8, 2, 0, 0, 0)
+              row = b"\x00" + bytes(rgb) * size
+              idat = zlib.compress(row * size)
+              return (b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", ihdr)
+                      + chunk(b"IDAT", idat) + chunk(b"IEND", b""))
+          for folder, size in [("mipmap-mdpi", 48), ("mipmap-hdpi", 72), ("mipmap-xhdpi", 96), ("mipmap-xxhdpi", 144), ("mipmap-xxxhdpi", 192)]:
+              os.makedirs(folder, exist_ok=True)
+              with open(os.path.join(folder, "ic_launcher.png"), "wb") as f:
+                  f.write(png(size, (16, 16, 24)))
+              print(folder, size, "ok")
+          PYEOF
           ls -la mipmap-*/ic_launcher.png
 
       - name: Build debug APK

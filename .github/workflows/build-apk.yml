@@ -21,6 +21,20 @@ jobs:
           distribution: temurin
           java-version: '17'
 
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Write android/local.properties for CI
+        working-directory: app/android
+        run: |
+          FLUTTER_SDK=$(dirname "$(dirname "$(readlink -f "$(which flutter)")")")
+          echo "flutter.sdk=$FLUTTER_SDK" > local.properties
+          echo "sdk.dir=$ANDROID_HOME" >> local.properties
+          cat local.properties
+
       - name: Set up Gradle (to regenerate the wrapper jar)
         uses: gradle/actions/setup-gradle@v4
         with:
@@ -39,12 +53,6 @@ jobs:
             convert -size "${2}x${2}" xc:"#101018" "$1/ic_launcher.png" || magick -size "${2}x${2}" xc:"#101018" "$1/ic_launcher.png"
           done
           ls -la mipmap-*/ic_launcher.png
-
-      - name: Set up Flutter
-        uses: subosito/flutter-action@v2
-        with:
-          channel: stable
-          cache: true
 
       - name: Build debug APK
         working-directory: app

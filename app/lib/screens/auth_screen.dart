@@ -3,6 +3,7 @@ import 'package:material_ui/material_ui.dart';
 import '../services/store.dart';
 import '../services/wallet.dart';
 import '../theme.dart';
+import '../widgets.dart';
 
 /// Login / signup: wallet (EVM personal_sign) or phone OTP.
 /// Signup is invite-only — the extra fields appear when "I'm new" is on.
@@ -21,7 +22,6 @@ class _AuthScreenState extends State<AuthScreen> {
   String? _error;
   String? _devCode;
 
-  final _server = TextEditingController();
   final _invite = TextEditingController();
   final _cashtag = TextEditingController();
   final _privKey = TextEditingController();
@@ -34,7 +34,6 @@ class _AuthScreenState extends State<AuthScreen> {
   @override
   void initState() {
     super.initState();
-    _server.text = state.api.baseUrl;
     state.savedWalletKey().then((k) {
       if (k != null && mounted) _privKey.text = k;
     });
@@ -42,7 +41,7 @@ class _AuthScreenState extends State<AuthScreen> {
 
   @override
   void dispose() {
-    for (final c in [_server, _invite, _cashtag, _privKey, _phone, _code]) {
+    for (final c in [_invite, _cashtag, _privKey, _phone, _code]) {
       c.dispose();
     }
     super.dispose();
@@ -123,84 +122,103 @@ class _AuthScreenState extends State<AuthScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const SizedBox(height: 32),
-              const Text('DexterChat',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                      fontSize: 34,
-                      fontWeight: FontWeight.bold,
-                      color: kAccent)),
-              const Text('Private circle messenger · end-to-end encrypted',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(color: kMuted)),
-              const SizedBox(height: 28),
-              TextField(
-                controller: _server,
-                decoration: const InputDecoration(
-                    labelText: 'Server URL', prefixIcon: Icon(Icons.dns)),
-              ),
-              const SizedBox(height: 8),
-              Align(
-                alignment: Alignment.centerRight,
-                child: TextButton(
-                  onPressed: () => state.setServerUrl(_server.text.trim()),
-                  child: const Text('Use this server'),
+      body: VoidBackground(
+        child: SafeArea(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const SizedBox(height: 26),
+                const FadeInSlide(
+                  dy: 16,
+                  child: Column(
+                    children: [
+                      LogoMark(size: 96),
+                      SizedBox(height: 18),
+                      GradientText(
+                        'DexterChat',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                            fontSize: 34, fontWeight: FontWeight.w800),
+                      ),
+                      SizedBox(height: 6),
+                      Text(
+                        'Private circle messenger · end-to-end encrypted',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(color: kMuted),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-              SegmentedButton<int>(
-                segments: const [
-                  ButtonSegment(
-                      value: 0,
-                      icon: Icon(Icons.account_balance_wallet),
-                      label: Text('Wallet')),
-                  ButtonSegment(
-                      value: 1,
-                      icon: Icon(Icons.phone_android),
-                      label: Text('Phone')),
-                ],
-                selected: {_method},
-                onSelectionChanged: (s) =>
-                    setState(() => _method = s.first),
-              ),
-              const SizedBox(height: 16),
-              SwitchListTile(
-                value: _isNew,
-                onChanged: (v) => setState(() => _isNew = v),
-                title: const Text("I'm new here"),
-                subtitle: const Text('Signup needs an invite code'),
-              ),
-              if (_isNew) ...[
-                TextField(
-                  controller: _invite,
-                  decoration: const InputDecoration(
-                      labelText: 'Invite code', prefixText: ''),
+                const SizedBox(height: 26),
+                FadeInSlide(
+                  dy: 26,
+                  child: DepthCard(
+                    padding: const EdgeInsets.all(18),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        SegmentedButton<int>(
+                          segments: const [
+                            ButtonSegment(
+                                value: 0,
+                                icon: Icon(Icons.account_balance_wallet),
+                                label: Text('Wallet')),
+                            ButtonSegment(
+                                value: 1,
+                                icon: Icon(Icons.phone_android),
+                                label: Text('Phone')),
+                          ],
+                          selected: {_method},
+                          onSelectionChanged: (s) =>
+                              setState(() => _method = s.first),
+                        ),
+                        const SizedBox(height: 8),
+                        SwitchListTile(
+                          contentPadding: EdgeInsets.zero,
+                          value: _isNew,
+                          onChanged: (v) => setState(() => _isNew = v),
+                          title: const Text("I'm new here"),
+                          subtitle: const Text('Signup needs an invite code'),
+                        ),
+                        if (_isNew) ...[
+                          DepthField(
+                            child: TextField(
+                              controller: _invite,
+                              decoration: bareFieldDecoration(
+                                  labelText: 'Invite code'),
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          DepthField(
+                            child: TextField(
+                              controller: _cashtag,
+                              decoration: bareFieldDecoration(
+                                  labelText: 'Choose your \$name',
+                                  prefixText: '\$'),
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                        ],
+                        if (_method == 0) ..._walletFields(),
+                        if (_method == 1) ..._phoneFields(),
+                        if (_error != null) ...[
+                          const SizedBox(height: 16),
+                          Text(_error!,
+                              style:
+                                  const TextStyle(color: Colors.redAccent)),
+                        ],
+                        if (_busy) ...[
+                          const SizedBox(height: 16),
+                          const Center(child: CircularProgressIndicator()),
+                        ],
+                      ],
+                    ),
+                  ),
                 ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: _cashtag,
-                  decoration: const InputDecoration(
-                      labelText: 'Choose your \$name', prefixText: '\$'),
-                ),
-                const SizedBox(height: 16),
               ],
-              if (_method == 0) ..._walletFields(),
-              if (_method == 1) ..._phoneFields(),
-              if (_error != null) ...[
-                const SizedBox(height: 16),
-                Text(_error!,
-                    style: const TextStyle(color: Colors.redAccent)),
-              ],
-              if (_busy) ...[
-                const SizedBox(height: 16),
-                const Center(child: CircularProgressIndicator()),
-              ],
-            ],
+            ),
           ),
         ),
       ),
@@ -208,18 +226,20 @@ class _AuthScreenState extends State<AuthScreen> {
   }
 
   List<Widget> _walletFields() => [
-        TextField(
-          controller: _privKey,
-          obscureText: true,
-          decoration: const InputDecoration(
-            labelText: 'Wallet private key',
-            helperText:
-                'Stored only in this device\'s secure keystore. '
-                'It is never shown anywhere in the app.',
+        DepthField(
+          child: TextField(
+            controller: _privKey,
+            obscureText: true,
+            decoration: bareFieldDecoration(
+              labelText: 'Wallet private key',
+              helperText:
+                  'Stored only in this device\'s secure keystore. '
+                  'It is never shown anywhere in the app.',
+            ),
           ),
         ),
         const SizedBox(height: 16),
-        ElevatedButton(
+        GradientButton(
           onPressed: _busy ? null : _walletGo,
           child: const Text('Continue with wallet'),
         ),
@@ -230,14 +250,16 @@ class _AuthScreenState extends State<AuthScreen> {
       ];
 
   List<Widget> _phoneFields() => [
-        TextField(
-          controller: _phone,
-          keyboardType: TextInputType.phone,
-          decoration: const InputDecoration(labelText: 'Phone number'),
+        DepthField(
+          child: TextField(
+            controller: _phone,
+            keyboardType: TextInputType.phone,
+            decoration: bareFieldDecoration(labelText: 'Phone number'),
+          ),
         ),
         const SizedBox(height: 12),
         if (!_codeSent)
-          ElevatedButton(
+          GradientButton(
             onPressed: _busy ? null : _phoneSend,
             child: const Text('Send code'),
           )
@@ -247,17 +269,22 @@ class _AuthScreenState extends State<AuthScreen> {
               padding: const EdgeInsets.all(10),
               margin: const EdgeInsets.only(bottom: 12),
               decoration: BoxDecoration(
-                  color: kSurface2, borderRadius: BorderRadius.circular(8)),
+                color: kSurface2,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: kAccent2.withValues(alpha: 0.35)),
+              ),
               child: Text('DEV MODE — your code is $_devCode',
                   style: const TextStyle(color: kAccent2)),
             ),
-          TextField(
-            controller: _code,
-            keyboardType: TextInputType.number,
-            decoration: const InputDecoration(labelText: '6-digit code'),
+          DepthField(
+            child: TextField(
+              controller: _code,
+              keyboardType: TextInputType.number,
+              decoration: bareFieldDecoration(labelText: '6-digit code'),
+            ),
           ),
           const SizedBox(height: 12),
-          ElevatedButton(
+          GradientButton(
             onPressed: _busy ? null : _phoneGo,
             child: const Text('Verify & continue'),
           ),

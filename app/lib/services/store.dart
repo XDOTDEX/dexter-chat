@@ -60,9 +60,10 @@ class AppState extends ChangeNotifier {
 
   // ------------------------------------------------------------ startup
   Future<void> init() async {
-    final url = await _storage.read(key: 'server_url') ??
-        AppConfig.defaultServerUrl;
-    api = ApiClient(url);
+    // The server is fixed (see AppConfig) — a server URL stored by an
+    // older build is ignored and dropped.
+    api = ApiClient(AppConfig.serverUrl);
+    await _storage.delete(key: 'server_url');
     final priv = await _storage.read(key: 'identity_priv');
     if (priv != null) identity = Identity.fromPrivateKeyB64(priv);
     final keys = await _storage.read(key: 'group_keys');
@@ -91,12 +92,6 @@ class AppState extends ChangeNotifier {
       }
     });
     ready = true;
-    notifyListeners();
-  }
-
-  Future<void> setServerUrl(String url) async {
-    api.baseUrl = url.replaceAll(RegExp(r'/+$'), '');
-    await _storage.write(key: 'server_url', value: api.baseUrl);
     notifyListeners();
   }
 

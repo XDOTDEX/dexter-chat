@@ -1,8 +1,9 @@
-/// App-wide constants. The server URL is user-changeable in Profile
-/// (stored in secure storage); this is only the first-run default.
+/// App-wide constants.
 class AppConfig {
-  /// 10.0.2.2 reaches the host machine from the Android emulator.
-  static const String defaultServerUrl = 'http://10.0.2.2:8642';
+  /// The one and only DexterChat server. The URL is deliberately NOT
+  /// user-changeable anywhere in the app — every install talks to this
+  /// address, and any server URL stored by an older build is ignored.
+  static const String serverUrl = 'https://chat.dexterbots.eu.cc';
 
   static const String secureChannel = 'dexter/secure';
 }

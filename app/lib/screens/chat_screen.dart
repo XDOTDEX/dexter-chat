@@ -9,6 +9,7 @@ import 'package:record/record.dart';
 import '../models.dart';
 import '../services/store.dart';
 import '../theme.dart';
+import '../widgets.dart';
 import 'photo_viewer.dart';
 
 class ChatScreen extends StatefulWidget {
@@ -169,34 +170,49 @@ class _ChatScreenState extends State<ChatScreen> {
             : state.profilesById[conv.peerUserId];
         return Scaffold(
           appBar: AppBar(
-            title: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            flexibleSpace: gradientAppBarBackground(),
+            title: Row(
               children: [
-                Text(conv.title, style: const TextStyle(fontSize: 17)),
-                if (peer != null)
-                  Text(
-                    (peer.online ?? false) ? 'online' : 'offline',
-                    style: const TextStyle(fontSize: 12, color: kMuted),
-                  ),
+                if (!conv.isGroup) ...[
+                  GradientAvatar(label: conv.title, radius: 17),
+                  const SizedBox(width: 10),
+                ],
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(conv.title, style: const TextStyle(fontSize: 17)),
+                    if (peer != null)
+                      Text(
+                        (peer.online ?? false) ? 'online' : 'offline',
+                        style: TextStyle(
+                            fontSize: 12,
+                            color: (peer.online ?? false)
+                                ? Colors.greenAccent
+                                : kMuted),
+                      ),
+                  ],
+                ),
               ],
             ),
           ),
-          body: Column(
-            children: [
-              Expanded(
-                child: ListView.builder(
-                  reverse: true,
-                  padding: const EdgeInsets.all(12),
-                  itemCount: conv.messages.length,
-                  itemBuilder: (context, i) {
-                    final msg =
-                        conv.messages[conv.messages.length - 1 - i];
-                    return _bubble(msg);
-                  },
+          body: VoidBackground(
+            child: Column(
+              children: [
+                Expanded(
+                  child: ListView.builder(
+                    reverse: true,
+                    padding: const EdgeInsets.all(12),
+                    itemCount: conv.messages.length,
+                    itemBuilder: (context, i) {
+                      final msg =
+                          conv.messages[conv.messages.length - 1 - i];
+                      return _bubble(msg);
+                    },
+                  ),
                 ),
-              ),
-              _inputBar(),
-            ],
+                _inputBar(),
+              ],
+            ),
           ),
         );
       },
@@ -205,7 +221,13 @@ class _ChatScreenState extends State<ChatScreen> {
 
   Widget _bubble(ChatMessage msg) {
     final align = msg.mine ? Alignment.centerRight : Alignment.centerLeft;
-    final color = msg.mine ? kAccent.withValues(alpha: 0.85) : kSurface2;
+    // Bubble "tail": the corner nearest the sender stays tight.
+    final radius = BorderRadius.only(
+      topLeft: const Radius.circular(19),
+      topRight: const Radius.circular(19),
+      bottomLeft: Radius.circular(msg.mine ? 19 : 5),
+      bottomRight: Radius.circular(msg.mine ? 5 : 19),
+    );
     Widget content;
     switch (msg.kind) {
       case 'photo':
@@ -235,11 +257,30 @@ class _ChatScreenState extends State<ChatScreen> {
       alignment: align,
       child: Container(
         margin: const EdgeInsets.symmetric(vertical: 3),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 9),
         constraints:
             BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.78),
         decoration: BoxDecoration(
-            color: color, borderRadius: BorderRadius.circular(14)),
+          gradient: msg.mine ? kAccentGradient : kPanelGradient,
+          borderRadius: radius,
+          border: msg.mine
+              ? Border.all(color: const Color(0x2EFFFFFF))
+              : Border.all(color: const Color(0x12FFFFFF)),
+          boxShadow: msg.mine
+              ? [
+                  BoxShadow(
+                    color: kAccent.withValues(alpha: 0.30),
+                    blurRadius: 12,
+                    offset: const Offset(0, 4),
+                  ),
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.35),
+                    blurRadius: 6,
+                    offset: const Offset(0, 2),
+                  ),
+                ]
+              : depthShadow(strength: 0.55),
+        ),
         child: Column(
           crossAxisAlignment:
               msg.mine ? CrossAxisAlignment.end : CrossAxisAlignment.start,
@@ -248,7 +289,7 @@ class _ChatScreenState extends State<ChatScreen> {
               Text('\$${msg.senderCashtag}',
                   style: const TextStyle(fontSize: 11, color: kAccent2)),
             content,
-            const SizedBox(height: 2),
+            const SizedBox(height: 3),
             Row(mainAxisSize: MainAxisSize.min, children: [
               Text(
                 '${msg.createdAt.hour.toString().padLeft(2, '0')}:'
@@ -257,6 +298,14 @@ class _ChatScreenState extends State<ChatScreen> {
                     fontSize: 10,
                     color: Colors.white.withValues(alpha: 0.65)),
               ),
+              if (msg.mine) ...[
+                const SizedBox(width: 4),
+                Icon(
+                  msg.serverId != null ? Icons.done : Icons.access_time,
+                  size: 11,
+                  color: Colors.white.withValues(alpha: 0.65),
+                ),
+              ],
               if (msg.expiresAt != null) ...[
                 const SizedBox(width: 4),
                 Icon(Icons.timer,
@@ -272,9 +321,24 @@ class _ChatScreenState extends State<ChatScreen> {
   Widget _inputBar() {
     return SafeArea(
       child: Container(
-        color: kSurface,
-        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Color(0xFF151524), Color(0xFF0C0C15)],
+          ),
+          border: const Border(top: BorderSide(color: Color(0x14FFFFFF))),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.4),
+              blurRadius: 14,
+              offset: const Offset(0, -3),
+            ),
+          ],
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
         child: Row(
+          crossAxisAlignment: CrossAxisAlignment.end,
           children: [
             IconButton(
               icon: Icon(Icons.timer,
@@ -288,12 +352,15 @@ class _ChatScreenState extends State<ChatScreen> {
               onPressed: _sendPhoto,
             ),
             Expanded(
-              child: TextField(
-                controller: _text,
-                minLines: 1,
-                maxLines: 4,
-                decoration: const InputDecoration(hintText: 'Message…'),
-                onSubmitted: (_) => _sendText(),
+              child: DepthField(
+                radius: 22,
+                child: TextField(
+                  controller: _text,
+                  minLines: 1,
+                  maxLines: 4,
+                  decoration: bareFieldDecoration(hintText: 'Message…'),
+                  onSubmitted: (_) => _sendText(),
+                ),
               ),
             ),
             if (_recording)
@@ -308,9 +375,26 @@ class _ChatScreenState extends State<ChatScreen> {
                 tooltip: 'Record voice note',
                 onPressed: _toggleRecord,
               ),
-            IconButton(
-              icon: const Icon(Icons.send, color: kAccent),
-              onPressed: _sendText,
+            const SizedBox(width: 2),
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: kAccentGradient,
+                border: Border.all(color: const Color(0x2EFFFFFF)),
+                boxShadow: [
+                  BoxShadow(
+                    color: kAccent.withValues(alpha: 0.45),
+                    blurRadius: 12,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: IconButton(
+                icon: const Icon(Icons.send, color: Colors.white, size: 20),
+                onPressed: _sendText,
+              ),
             ),
           ],
         ),

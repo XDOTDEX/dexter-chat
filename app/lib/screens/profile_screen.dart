@@ -2,9 +2,10 @@ import 'package:material_ui/material_ui.dart';
 
 import '../services/store.dart';
 import '../theme.dart';
+import '../widgets.dart';
 
 /// Profile tab: my $name, "username last changed", change history,
-/// linked login methods, server settings, logout / device reset.
+/// linked login methods, logout / device reset.
 class ProfileScreen extends StatefulWidget {
   final AppState state;
   const ProfileScreen({super.key, required this.state});
@@ -15,21 +16,13 @@ class ProfileScreen extends StatefulWidget {
 
 class _ProfileScreenState extends State<ProfileScreen> {
   final _newName = TextEditingController();
-  final _server = TextEditingController();
   bool _busy = false;
 
   AppState get state => widget.state;
 
   @override
-  void initState() {
-    super.initState();
-    _server.text = state.api.baseUrl;
-  }
-
-  @override
   void dispose() {
     _newName.dispose();
-    _server.dispose();
     super.dispose();
   }
 
@@ -85,98 +78,106 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final me = state.me;
     if (me == null) return const Center(child: CircularProgressIndicator());
     return ListView(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(16),
       children: [
-        const CircleAvatar(
-          radius: 34,
-          backgroundColor: kSurface2,
-          child: Icon(Icons.person, size: 36, color: kAccent),
-        ),
-        const SizedBox(height: 12),
-        Text(me.display,
-            textAlign: TextAlign.center,
-            style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
-        const SizedBox(height: 4),
-        Text('Member since ${_fmtDate(me.createdAt)}',
-            textAlign: TextAlign.center,
-            style: const TextStyle(color: kMuted)),
-        Text(
-          me.cashtagChangedAt == null
-              ? 'Username last changed: never'
-              : 'Username last changed: ${_fmtDate(me.cashtagChangedAt!)}',
-          textAlign: TextAlign.center,
-          style: const TextStyle(color: kMuted),
-        ),
-        const SizedBox(height: 16),
-        Wrap(alignment: WrapAlignment.center, spacing: 8, children: [
-          Chip(
-              avatar: const Icon(Icons.account_balance_wallet, size: 16),
-              label: Text((me.hasWallet ?? false)
-                  ? 'Wallet linked'
-                  : 'No wallet linked')),
-          Chip(
-              avatar: const Icon(Icons.phone_android, size: 16),
-              label: Text((me.hasPhone ?? false)
-                  ? 'Phone linked'
-                  : 'No phone linked')),
-        ]),
-        const Divider(height: 36),
-        const Text('Change \$name',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
-        const SizedBox(height: 8),
-        Row(children: [
-          Expanded(
-            child: TextField(
-              controller: _newName,
-              decoration: const InputDecoration(
-                  labelText: 'New \$name', prefixText: '\$'),
-            ),
+        DepthCard(
+          padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 18),
+          child: Column(
+            children: [
+              GradientAvatar(label: me.cashtag, radius: 38),
+              const SizedBox(height: 14),
+              Text(me.display,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                      fontSize: 24, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 4),
+              Text('Member since ${_fmtDate(me.createdAt)}',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(color: kMuted)),
+              Text(
+                me.cashtagChangedAt == null
+                    ? 'Username last changed: never'
+                    : 'Username last changed: ${_fmtDate(me.cashtagChangedAt!)}',
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: kMuted),
+              ),
+              const SizedBox(height: 14),
+              Wrap(alignment: WrapAlignment.center, spacing: 8, children: [
+                Chip(
+                    avatar: const Icon(Icons.account_balance_wallet, size: 16),
+                    label: Text((me.hasWallet ?? false)
+                        ? 'Wallet linked'
+                        : 'No wallet linked')),
+                Chip(
+                    avatar: const Icon(Icons.phone_android, size: 16),
+                    label: Text((me.hasPhone ?? false)
+                        ? 'Phone linked'
+                        : 'No phone linked')),
+              ]),
+            ],
           ),
-          const SizedBox(width: 8),
-          ElevatedButton(
-              onPressed: _busy ? null : _changeName,
-              child: const Text('Change')),
-        ]),
-        const SizedBox(height: 16),
-        const Text('\$name history',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
-        FutureBuilder<List<Map<String, dynamic>>>(
-          future: state.api.cashtagHistory(),
-          builder: (context, snap) {
-            if (!snap.hasData) return const SizedBox.shrink();
-            return Column(
-              children: [
-                for (final h in snap.data!)
-                  ListTile(
-                    dense: true,
-                    leading: const Icon(Icons.history, color: kMuted),
-                    title: Text(h['old'] == null
-                        ? 'Registered as ${h['new']}'
-                        : '${h['old']} → ${h['new']}'),
-                    subtitle:
-                        Text(_fmtDate((h['changed_at'] as num).toDouble())),
+        ),
+        const SizedBox(height: 14),
+        DepthCard(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const Text('Change \$name',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+              const SizedBox(height: 10),
+              Row(children: [
+                Expanded(
+                  child: DepthField(
+                    child: TextField(
+                      controller: _newName,
+                      decoration: bareFieldDecoration(
+                          labelText: 'New \$name', prefixText: '\$'),
+                    ),
                   ),
-              ],
-            );
-          },
+                ),
+                const SizedBox(width: 10),
+                GradientButton(
+                  padding:
+                      const EdgeInsets.symmetric(vertical: 13, horizontal: 18),
+                  onPressed: _busy ? null : _changeName,
+                  child: const Text('Change'),
+                ),
+              ]),
+            ],
+          ),
         ),
-        const Divider(height: 36),
-        const Text('Server',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
-        const SizedBox(height: 8),
-        Row(children: [
-          Expanded(
-            child: TextField(
-                controller: _server,
-                decoration: const InputDecoration(labelText: 'Server URL')),
+        const SizedBox(height: 14),
+        DepthCard(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const Text('\$name history',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+              FutureBuilder<List<Map<String, dynamic>>>(
+                future: state.api.cashtagHistory(),
+                builder: (context, snap) {
+                  if (!snap.hasData) return const SizedBox.shrink();
+                  return Column(
+                    children: [
+                      for (final h in snap.data!)
+                        ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          dense: true,
+                          leading: const Icon(Icons.history, color: kMuted),
+                          title: Text(h['old'] == null
+                              ? 'Registered as ${h['new']}'
+                              : '${h['old']} → ${h['new']}'),
+                          subtitle: Text(
+                              _fmtDate((h['changed_at'] as num).toDouble())),
+                        ),
+                    ],
+                  );
+                },
+              ),
+            ],
           ),
-          const SizedBox(width: 8),
-          ElevatedButton(
-            onPressed: () => state.setServerUrl(_server.text.trim()),
-            child: const Text('Save'),
-          ),
-        ]),
-        const SizedBox(height: 24),
+        ),
+        const SizedBox(height: 22),
         OutlinedButton.icon(
           icon: const Icon(Icons.logout),
           label: const Text('Log out'),
